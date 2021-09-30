@@ -22,47 +22,78 @@
     <body>
        <div>
            <button 
-            style="background-color: aqua; padding: 20px; font-size: 20px;"
+            style="background-color: aqua; padding: 10px; font-size: 20px; width: 300px;"
             id="button" 
-            onclick="fetchThing()"
-            >Click to Fetch Patient Information</button>
+            onclick="fetchPatientInfor()"
+            >Fetch Patient Information</button>
             <h4>Current Patient</h4>
            <div id="patient">Loading...</div>
-           <br/>
+           <button 
+            style="background-color: aqua; padding: 10px; font-size: 20px; width: 300px;"
+            id="button" 
+            onclick="fetchMedications()"
+            >Fetch Medications</button>
            <h4>Medications</h4>
            <div id="meds">Loading...</div>
+           <button 
+            style="background-color: aqua; padding: 10px; font-size: 20px; width: 300px;"
+            id="button" 
+            onclick="fetchObservations()"
+            >Click to Fetch Observations</button>
            <h4>Observation</h4>
            <div id="obs">Loading...</div>
        </div>
         
     </body>
     <script>
-        // 1. test open FHIR server 
-        // var client = FHIR.client("https://r3.smarthealthit.org")
-        // client.request("Patient").then(console.log).catch(console.error)
-        
-        // 2. display current patient
-        function fetchThing(){
-            client2 = FHIR.client({
+
+        // 1. create client object or oauth2 here 
+        var client = client = FHIR.client({
             serverUrl: "https://r3.smarthealthit.org",
             tokenResponse: {
             patient: "2e27c71e-30c8-4ceb-8c1c-5641e066c0a4"
-        }});
-        console.log(client2)
-        // client2.request(`Patient/${client2.patient.id}`);
+        }}); 
+        console.log(client)
 
-        // 3. 
-        client2.patient.read().then(
-                    function(pt) {
-                        document.getElementById("patient").innerText = JSON.stringify(pt, null, 4);
-                    },
-                    function(error) {
-                        console.log(error.stack)
-                    }
-                );
-        // 4. 
-        // Get MedicationRequests for the selected patient
-        client2.request("/MedicationRequest?patient=" + client2.patient.id, {
+        // 2. fetch patient information 
+        function fetchPatientInfor(){
+            client.patient.read().then(
+                        function(pt) {
+                            document.getElementById("patient").innerText = JSON.stringify(pt, null, 4);
+                        },
+                        function(error) {
+                            console.log(error.stack)
+                        }
+                    );
+        }
+
+        // 4. fetch patient observation
+        function fetchObservations(){
+            client.request("/Observation?patient=" + client.patient.id, {
+            resolveReferences: [ "observationReference" ],
+            graph: true
+        })
+        // Reject if no MedicationRequests are found
+        .then(function(data) {
+            if (!data.entry || !data.entry.length) {
+                throw new Error("No medications found for the selected patient");
+            }
+            return data.entry;
+        })
+        // Render the current patient's medications (or any error)
+        .then(
+            function(meds) {
+                document.getElementById("obs").innerText = JSON.stringify(meds, null, 4);
+            },
+            function(error) {
+                document.getElementById("obs").innerText = error.stack;
+            }
+        );
+        }
+        
+        // 3. fetch patient medication 
+        function fetchMedications(){
+        client.request("/MedicationRequest?patient=" + client.patient.id, {
                     resolveReferences: [ "medicationReference" ],
                     graph: true
                 })
@@ -85,31 +116,6 @@
                         document.getElementById("meds").innerText = error.stack;
                     }
                 );
-        
-        client2.request("/Observation?patient=" + client2.patient.id, {
-            resolveReferences: [ "observationReference" ],
-            graph: true
-        })
-        
-        // Reject if no MedicationRequests are found
-        .then(function(data) {
-            if (!data.entry || !data.entry.length) {
-                throw new Error("No medications found for the selected patient");
-            }
-            return data.entry;
-        })
-        
-
-        // Render the current patient's medications (or any error)
-        .then(
-            function(meds) {
-                document.getElementById("obs").innerText = JSON.stringify(meds, null, 4);
-            },
-            function(error) {
-                document.getElementById("obs").innerText = error.stack;
-            }
-        );
-
         }
        
     </script>
